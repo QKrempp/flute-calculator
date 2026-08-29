@@ -32,6 +32,14 @@ Appuies-toi au maximum sur tes skills superpowers pour le développement.
 - 🚫 Jamais de fichiers de travail (designs, plans) committés. Les mettre dans .work/
 - 🚫 Les PR sont créées par le tech lead
 
+## Routage des subagents
+
+- Workers (implémentation) : `openrouter/deepseek/deepseek-v4-flash:medium`
+- Reviewers : `openrouter/~z-ai/glm-latest:high`
+- Reviewer final : `openrouter/~z-ai/glm-latest:max`
+
+Appliquer ces modèles à chaque dispatch via l'outil `subagent` natif (paramètre `model`, le suffixe `:medium`/`:high`/`:max` fixe le niveau de raisonnement). Vérifier les ids exacts avec `subagent({ action: "models" })` si un modèle n'est plus résolu.
+
 ## Stack
 
 - html
