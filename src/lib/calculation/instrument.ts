@@ -56,13 +56,31 @@ export function computeHolePlacements(
 	const holesFromBellToEmbouchure = [...holes].sort(
 		(left, right) => left.frequency - right.frequency
 	);
-	const positions = holesFromBellToEmbouchure.map((hole) =>
+	const theoreticalPositions = holesFromBellToEmbouchure.map((hole) =>
 		theoreticalPipeLength(hole.frequency, pipe.resonator)
 	);
+	const positions = [...theoreticalPositions];
 
+	// Fixed-point iteration: each round recomputes the corrections from the current
+	// positions and repositions the holes relative to their theoretical lengths.
+	// Subtracting corrections cumulatively instead would diverge, as the article's author suspected.
 	for (let iteration = 0; iteration < iterations; iteration++) {
-		applyOpenHoleCorrections(holesFromBellToEmbouchure, positions, pipeTheoreticalLength);
-		applyClosedHoleCorrections(holesFromBellToEmbouchure, positions);
+		for (let index = 0; index < holesFromBellToEmbouchure.length; index++) {
+			const openCorrection =
+				index === 0
+					? openHoleCorrection(
+							holesFromBellToEmbouchure[0],
+							pipeTheoreticalLength - positions[0]
+					)
+					: openHoleInteractionCorrection(
+							holesFromBellToEmbouchure[index],
+							positions[index - 1] - positions[index]
+					);
+			const closedCorrection = holesFromBellToEmbouchure
+				.slice(index + 1)
+				.reduce((sum, hole) => sum + closedHoleCorrection(hole), 0);
+			positions[index] = theoreticalPositions[index] - openCorrection - closedCorrection;
+		}
 	}
 
 	const placements = holesFromBellToEmbouchure
@@ -73,39 +91,6 @@ export function computeHolePlacements(
 		placements,
 		pipeLength: pipeTheoreticalLength - endCorrection(pipe.boreDiameter)
 	};
-}
-
-/** Applies the venting corrections of open holes, going up from the bell-most hole. */
-function applyOpenHoleCorrections(
-	holesFromBellToEmbouchure: ToneHoleSpec[],
-	positions: number[],
-	pipeTheoreticalLength: number
-): void {
-	for (let index = 0; index < holesFromBellToEmbouchure.length; index++) {
-		const correction =
-			index === 0
-				? openHoleCorrection(
-						holesFromBellToEmbouchure[0],
-						pipeTheoreticalLength - positions[0]
-					)
-				: openHoleInteractionCorrection(
-						holesFromBellToEmbouchure[index],
-						positions[index - 1] - positions[index]
-					);
-		positions[index] -= correction;
-	}
-}
-
-/** Applies the lowering effect of closed holes to every hole sounding below them. */
-function applyClosedHoleCorrections(holesFromBellToEmbouchure: ToneHoleSpec[], positions: number[]): void {
-	for (let index = 0; index < holesFromBellToEmbouchure.length; index++) {
-		const closedHolesAbove = holesFromBellToEmbouchure.slice(index + 1);
-		const totalCorrection = closedHolesAbove.reduce(
-			(sum, hole) => sum + closedHoleCorrection(hole),
-			0
-		);
-		positions[index] -= totalCorrection;
-	}
 }
 
 /** Builds the placement report of a hole, including its cutoff frequency. */

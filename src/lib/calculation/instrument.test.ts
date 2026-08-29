@@ -54,6 +54,26 @@ describe('computeHolePlacements', () => {
 		expect(placements[0]?.position).toBeLessThan(placements[1]?.position ?? 0);
 	});
 
+	it('converges on closely spaced holes instead of crossing positions', () => {
+		const tightHoles: ToneHoleSpec[] = [470, 500, 530].map((frequency) => ({
+			frequency,
+			boreDiameter: 1.6,
+			holeDiameter: 0.8,
+			wallThickness: 0.25
+		}));
+
+		const { placements } = computeHolePlacements(
+			{ boreDiameter: 1.6, resonator: 'open', lowestNoteFrequency: 426 },
+			tightHoles
+		);
+
+		for (const placement of placements) {
+			expect(Number.isFinite(placement.position)).toBe(true);
+		}
+		expect(placements[0]?.position).toBeLessThan(placements[1]?.position ?? 0);
+		expect(placements[1]?.position).toBeLessThan(placements[2]?.position ?? 0);
+	});
+
 	it('shortens the pipe by the end correction to get the physical cut length', () => {
 		// 34500 / (2 * 220) - endCorrection(2) = 78.4091 - 0.6133
 		const { pipeLength } = computeHolePlacements(pipe, [lowerHole, higherHole], 0);
