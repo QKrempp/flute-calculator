@@ -1,5 +1,8 @@
 import { SPEED_OF_SOUND_CM_PER_SECOND } from './pipe';
 
+/** Defensive floor for hole spacings, keeping formulas finite when positions cross. */
+const MIN_SPACING_CM = 0.01;
+
 /** The physical dimensions of a tone hole, all lengths in cm. */
 export interface ToneHoleGeometry {
 	/** Diameter of the hole itself (d^t). */
@@ -29,9 +32,10 @@ export function openHoleInteractionCorrection(
 	spacingToOpenHoleBelow: number
 ): number {
 	const acousticThicknessOfHole = acousticThickness(hole);
+	const spacing = Math.max(spacingToOpenHoleBelow, MIN_SPACING_CM);
 	const boreToHoleAreaRatio = (hole.boreDiameter / hole.holeDiameter) ** 2;
-	const ratio = 4 * (acousticThicknessOfHole / spacingToOpenHoleBelow) * boreToHoleAreaRatio;
-	return (spacingToOpenHoleBelow / 2) * (Math.sqrt(1 + ratio) - 1);
+	const ratio = 4 * (acousticThicknessOfHole / spacing) * boreToHoleAreaRatio;
+	return (spacing / 2) * (Math.sqrt(1 + ratio) - 1);
 }
 
 /** Computes the lowering correction caused by a closed hole sitting above the sounding hole. */
@@ -42,10 +46,11 @@ export function closedHoleCorrection(hole: ToneHoleGeometry): number {
 /** Computes the cutoff frequency of a hole from its spacing to the hole below. */
 export function cutoffFrequency(hole: ToneHoleGeometry, spacingToHoleBelow: number): number {
 	const acousticThicknessOfHole = acousticThickness(hole);
+	const spacing = Math.max(spacingToHoleBelow, MIN_SPACING_CM);
 	const denominator =
 		hole.boreDiameter *
 		2 *
 		Math.PI *
-		Math.sqrt(acousticThicknessOfHole * spacingToHoleBelow);
+		Math.sqrt(acousticThicknessOfHole * spacing);
 	return (SPEED_OF_SOUND_CM_PER_SECOND * hole.holeDiameter) / denominator;
 }

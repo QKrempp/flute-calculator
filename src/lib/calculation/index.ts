@@ -7,6 +7,19 @@ export {
 	type ToneHoleSpec
 } from './instrument';
 export {
+	designFlute,
+	deriveLowestNoteFrequency,
+	solveHoleDiameter,
+	DRILL_STEP_CM,
+	type FluteDesign,
+	type SuggestedHolePlacement,
+	type TubeSpec
+} from './design';
+export {
+	noteNameToFrequency,
+	frequencyToNearestNoteName
+} from './notes';
+export {
 	endCorrection,
 	theoreticalPipeLength,
 	SPEED_OF_SOUND_CM_PER_SECOND,
