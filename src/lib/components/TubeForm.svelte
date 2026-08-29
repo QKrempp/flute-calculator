@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { TubeFormFields } from '$lib/design-input';
+	import FrequencyMeter from './FrequencyMeter.svelte';
 
 	let {
 		fields = $bindable(),
@@ -75,6 +76,10 @@
 			{:else if lowestNoteHint}
 				<span class="mt-1 block text-xs text-slate-500">{lowestNoteHint}</span>
 			{/if}
+			<FrequencyMeter
+				tuning={Number(fields.tuning) > 0 ? Number(fields.tuning) : 440}
+				onValidate={(frequency) => (fields.lowestNote = frequency.toFixed(1))}
+			/>
 		</label>
 	</div>
 </fieldset>
