@@ -9,6 +9,7 @@
 	}: { tuning?: number; onValidate: (frequency: number) => void } = $props();
 
 	let listening = $state(false);
+	let starting = $state(false);
 	let liveFrequency = $state<number | null>(null);
 	let failure = $state('');
 
@@ -26,9 +27,13 @@
 
 	/** Starts listening to the microphone and refreshing the live frequency reading. */
 	async function startListening(): Promise<void> {
+		if (starting || listening) return;
+		starting = true;
 		failure = '';
 		try {
-			stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+			stream = await navigator.mediaDevices.getUserMedia({
+				audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false }
+			});
 			audioContext = new AudioContext();
 			analyser = audioContext.createAnalyser();
 			analyser.fftSize = 4096;
@@ -39,16 +44,22 @@
 		} catch {
 			stopListening();
 			failure = 'Accès au micro refusé ou indisponible';
+		} finally {
+			starting = false;
 		}
 	}
 
+	const READ_INTERVAL_MS = 80;
+	let lastReadAt = 0;
+
 	/** Reads the latest buffer and schedules the next read while listening. */
-	function readNextBuffer(): void {
-		if (!listening || !analyser || !audioContext) {
-			return;
+	function readNextBuffer(now = 0): void {
+		if (!listening || !analyser || !audioContext) return;
+		if (now - lastReadAt >= READ_INTERVAL_MS) {
+			lastReadAt = now;
+			analyser.getFloatTimeDomainData(samples);
+			liveFrequency = detectPitch(samples, audioContext.sampleRate);
 		}
-		analyser.getFloatTimeDomainData(samples);
-		liveFrequency = detectPitch(samples, audioContext.sampleRate);
 		readLoopId = requestAnimationFrame(readNextBuffer);
 	}
 
@@ -80,7 +91,7 @@
 
 <div class="mt-1 flex items-center gap-2">
 	{#if !listening}
-		<button type="button" class={measureButtonClass} onclick={startListening}>
+		<button type="button" class={measureButtonClass} disabled={starting} onclick={startListening}>
 			🎤 Mesurer au micro
 		</button>
 	{:else}
