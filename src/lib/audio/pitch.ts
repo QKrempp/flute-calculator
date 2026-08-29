@@ -13,7 +13,9 @@ const MIN_TONE_CLARITY = 0.8;
 /** A candidate period must score at least this fraction of the best correlation. */
 const PERIOD_TOLERANCE = 0.9;
 
-/** Detects the fundamental frequency (Hz) of a time-domain buffer, null for silence or noise. */
+/** Detects the fundamental frequency (Hz) of a time-domain buffer, null for silence or noise.
+ * Note: inputs above MAX_DETECTABLE_FREQUENCY may be reported as a subharmonic frequency
+ * rather than null, by design of autocorrelation with a minimum-lag floor. */
 export function detectPitch(samples: Float32Array, sampleRate: number): number | null {
 	if (samples.length < 4 || sampleRate <= 0) {
 		return null;

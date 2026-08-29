@@ -89,7 +89,7 @@
 	$effect(() => () => stopListening());
 </script>
 
-<div class="mt-1 flex items-center gap-2">
+<span class="mt-1 flex items-center gap-2">
 	{#if !listening}
 		<button type="button" class={measureButtonClass} disabled={starting} onclick={startListening}>
 			🎤 Mesurer au micro
@@ -117,4 +117,4 @@
 	{#if failure}
 		<span class="text-xs text-red-600">{failure}</span>
 	{/if}
-</div>
+</span>

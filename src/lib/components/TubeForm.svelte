@@ -77,7 +77,7 @@
 				<span class="mt-1 block text-xs text-slate-500">{lowestNoteHint}</span>
 			{/if}
 			<FrequencyMeter
-				tuning={Number(fields.tuning) || 440}
+				tuning={Number(fields.tuning) > 0 ? Number(fields.tuning) : 440}
 				onValidate={(frequency) => (fields.lowestNote = frequency.toFixed(1))}
 			/>
 		</label>

@@ -80,4 +80,12 @@ describe('detectPitch', () => {
 	it('returns null below the detectable range', () => {
 		expect(detectPitch(sineWave(20), SAMPLE_RATE)).toBeNull();
 	});
+
+	it('returns null for a non-positive sample rate', () => {
+		expect(detectPitch(sineWave(440), 0)).toBeNull();
+	});
+
+	it('returns null for a buffer shorter than the search range', () => {
+		expect(detectPitch(sineWave(440).subarray(0, 8), SAMPLE_RATE)).toBeNull();
+	});
 });
