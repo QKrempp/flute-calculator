@@ -10,6 +10,9 @@ import {
 /** Number of correction rounds recommended by the article for a stable result. */
 export const CORRECTION_ITERATIONS = 5;
 
+/** Minimum gap kept between adjacent holes when corrections would cross them. */
+const MIN_HOLE_GAP_CM = 0.1;
+
 /** The physical characteristics of the instrument tube, all lengths in cm. */
 export interface PipeSpec {
 	/** Inner diameter of the bore (d^i). */
@@ -61,25 +64,32 @@ export function computeHolePlacements(
 	);
 	const positions = [...theoreticalPositions];
 
-	// Fixed-point iteration: each round recomputes the corrections from the current
-	// positions and repositions the holes relative to their theoretical lengths.
-	// Subtracting corrections cumulatively instead would diverge, as the article's author suspected.
+	// Fixed-point iteration: each round recomputes every correction from the previous round's
+	// positions and repositions every hole relative to its theoretical length simultaneously.
+	// Sequential updates would let a lower hole jump past an upper one before it moves,
+	// and cumulative subtraction would diverge, as the article's author suspected.
 	for (let iteration = 0; iteration < iterations; iteration++) {
-		for (let index = 0; index < holesFromBellToEmbouchure.length; index++) {
+		const corrections = holesFromBellToEmbouchure.map((hole, index) => {
 			const openCorrection =
 				index === 0
-					? openHoleCorrection(
-							holesFromBellToEmbouchure[0],
-							pipeTheoreticalLength - positions[0]
-					)
+					? openHoleCorrection(hole, pipeTheoreticalLength - positions[0])
 					: openHoleInteractionCorrection(
-							holesFromBellToEmbouchure[index],
+							hole,
 							positions[index - 1] - positions[index]
 					);
 			const closedCorrection = holesFromBellToEmbouchure
 				.slice(index + 1)
-				.reduce((sum, hole) => sum + closedHoleCorrection(hole), 0);
-			positions[index] = theoreticalPositions[index] - openCorrection - closedCorrection;
+				.reduce((sum, closedHole) => sum + closedHoleCorrection(closedHole), 0);
+			return openCorrection + closedCorrection;
+		});
+		for (let index = 0; index < holesFromBellToEmbouchure.length; index++) {
+			positions[index] = theoreticalPositions[index] - corrections[index];
+		}
+		// Safeguard: tightly spaced holes can attract each other past their neighbor because
+		// the interaction correction vanishes as spacing shrinks. Pin such pairs a millimeter
+		// apart so the plan stays drillable; the tiny gap stays visible in the output.
+		for (let index = 1; index < positions.length; index++) {
+			positions[index] = Math.min(positions[index], positions[index - 1] - MIN_HOLE_GAP_CM);
 		}
 	}
 
