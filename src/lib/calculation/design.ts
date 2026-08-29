@@ -1,12 +1,15 @@
 import { computeHolePlacements, type ToneHolePlacement, type ToneHoleSpec } from './instrument';
 import { endCorrection, SPEED_OF_SOUND_CM_PER_SECOND, theoreticalPipeLength } from './pipe';
-import { cutoffFrequency } from './tone-hole';
+import { cutoffFrequency, openHoleInteractionCorrection } from './tone-hole';
 
 /** Step (cm) of the suggested drill grid: half a millimeter. */
 export const DRILL_STEP_CM = 0.05;
 
 /** Number of position/diameter solving rounds before the design stabilizes. */
 const SOLVING_ROUNDS = 3;
+
+/** Share of the spacing below a hole that its interaction correction may not exceed. */
+const MAX_CORRECTION_SHARE = 1;
 
 /** The physical dimensions of an existing tube, all lengths in cm. */
 export interface TubeSpec {
@@ -88,7 +91,15 @@ export function designFlute(
 		diameters = positions.map((position, index) => {
 			const spacingToHoleBelow =
 				index === 0 ? acousticLength - position : positions[index - 1] - position;
-			return onDrillGrid(solveHoleDiameter(tube, spacingToHoleBelow, cutoffTarget), tube);
+			const forCutoff = solveHoleDiameter(tube, spacingToHoleBelow, cutoffTarget);
+			// Tight spacings would need tiny holes to reach the cutoff target, but tiny holes
+			// interact so strongly that positions cross: keep the correction within the spacing.
+			const feasible =
+				index === 0 ? 0 : minimumInteractionDiameter(tube, spacingToHoleBelow);
+			return onDrillGrid(
+				Math.min(Math.max(forCutoff, feasible), tube.boreDiameter),
+				tube
+			);
 		});
 
 		const specs: ToneHoleSpec[] = frequenciesFromBellToEmbouchure.map((frequency, index) => ({
@@ -112,7 +123,7 @@ export function designFlute(
 }
 
 /** Derives the lowest note of a tube from its physical length and the end correction. */
-function deriveLowestNoteFrequency(tube: TubeSpec): number {
+export function deriveLowestNoteFrequency(tube: TubeSpec): number {
 	const acousticLength = tube.length + endCorrection(tube.boreDiameter);
 	return SPEED_OF_SOUND_CM_PER_SECOND / (2 * acousticLength);
 }
@@ -131,6 +142,26 @@ function validateHoleFrequencies(frequencies: number[], lowestNoteFrequency: num
 function onDrillGrid(diameter: number, tube: TubeSpec): number {
 	const rounded = Math.round(diameter / DRILL_STEP_CM) * DRILL_STEP_CM;
 	return Math.min(Math.max(rounded, DRILL_STEP_CM), tube.boreDiameter);
+}
+
+/** Solves the smallest diameter whose interaction correction stays within the spacing below. */
+function minimumInteractionDiameter(tube: TubeSpec, spacingToHoleBelow: number): number {
+	const correctionOf = (holeDiameter: number) =>
+		openHoleInteractionCorrection({ ...tube, holeDiameter }, spacingToHoleBelow);
+	if (correctionOf(tube.boreDiameter) > spacingToHoleBelow * MAX_CORRECTION_SHARE) {
+		return tube.boreDiameter;
+	}
+	let low = 0;
+	let high = tube.boreDiameter;
+	for (let iteration = 0; iteration < 50; iteration++) {
+		const middle = (low + high) / 2;
+		if (correctionOf(middle) > spacingToHoleBelow * MAX_CORRECTION_SHARE) {
+			low = middle;
+		} else {
+			high = middle;
+		}
+	}
+	return (low + high) / 2;
 }
 
 function toPipeSpec(tube: TubeSpec, lowestNoteFrequency: number) {

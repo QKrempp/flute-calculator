@@ -88,4 +88,26 @@ describe('designFlute', () => {
 
 		expect(design.placements).toEqual([]);
 	});
+
+	it('keeps a dense diatonic scale drillable despite model limits', () => {
+		// Eight holes with semitone spacings stress the article's model: the feasibility
+		// constraint and ordering safeguard must still yield finite, ordered, drillable holes.
+		const design = designFlute(
+			{ length: 50, boreDiameter: 1.6, wallThickness: 0.2 },
+			[392, 440, 494, 523, 587, 659, 740, 784]
+		);
+
+		expect(design.placements).toHaveLength(8);
+		for (const placement of design.placements) {
+			expect(Number.isFinite(placement.position)).toBe(true);
+			expect(Number.isFinite(placement.cutoffFrequency)).toBe(true);
+			expect(placement.holeDiameter).toBeGreaterThan(0);
+			expect(placement.holeDiameter).toBeLessThanOrEqual(1.6);
+		}
+		for (let index = 1; index < design.placements.length; index++) {
+			expect(design.placements[index]?.position).toBeGreaterThan(
+				design.placements[index - 1]?.position ?? 0
+			);
+		}
+	});
 });
