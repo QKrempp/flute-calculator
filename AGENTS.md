@@ -12,6 +12,8 @@
 - Les Docstrings sont des one-liners
 - Aucun fichier de travail (documents de design, plans de travail) ne doit être commité
 - Conventional commits
+- Les commits sont unitaires (un seul changement logique par commit) et incluent une description des changements pour faciliter la relecture
+- Les PR sont créées par le tech lead
 
 ## Stack
 
