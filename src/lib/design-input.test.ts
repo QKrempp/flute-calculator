@@ -81,4 +81,20 @@ describe('parseDesignInput', () => {
 		expect(result.errors).toEqual({});
 		expect(result.input?.holeFrequencies).toEqual([]);
 	});
+
+	it('rejects a measured lowest note sharper than the tube allows', () => {
+		// 800 Hz sur un tube de 500 mm : la mesure est probablement un harmonique
+		const result = parseDesignInput({ ...validFields, lowestNote: '800' }, ['La5']);
+
+		expect(result.input).toBeNull();
+		expect(result.errors['lowestNote']).toMatch(/harmonique/);
+	});
+
+	it('rejects a measured lowest note so low that a hole leaves the tube', () => {
+		// 150 Hz sur un tube de 500 mm : correction d'embouchure de 64 cm, trou Sol5 négatif
+		const result = parseDesignInput({ ...validFields, lowestNote: '150' }, ['Sol5']);
+
+		expect(result.input).toBeNull();
+		expect(result.errors['lowestNote']).toMatch(/au-dessus de l'embouchure/);
+	});
 });

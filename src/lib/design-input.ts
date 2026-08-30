@@ -1,4 +1,4 @@
-import { deriveLowestNoteFrequency, type TubeSpec } from './calculation/design';
+import { designFlute, deriveLowestNoteFrequency, type TubeSpec } from './calculation/design';
 import { noteNameToFrequency } from './calculation/notes';
 import { parseDecimal } from './units';
 
@@ -69,6 +69,17 @@ export function parseDesignInput(fields: TubeFormFields, holeNames: string[]): D
 			errors[`hole-${index}`] = error instanceof Error ? error.message : 'Note invalide';
 		}
 	});
+
+	if (Object.keys(errors).length === 0) {
+		// Field-level checks passed: run the full design once so measurement
+		// inconsistencies surface on the lowest-note field, never in the page.
+		try {
+			designFlute(tube!, holeFrequencies, measuredLowestNoteFrequency);
+		} catch (error) {
+			errors['lowestNote'] =
+				error instanceof Error ? error.message : 'Note grave mesurée incohérente';
+		}
+	}
 
 	if (Object.keys(errors).length > 0) {
 		return { input: null, errors };
