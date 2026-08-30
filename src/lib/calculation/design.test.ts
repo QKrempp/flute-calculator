@@ -90,6 +90,41 @@ describe('designFlute', () => {
 		expect(design.placements).toEqual([]);
 	});
 
+	it('deduces the embouchure correction from the measured lowest note', () => {
+		// 34500 / (2 * 280) = 61.61 ; Δ = 61.61 - 60 - 0.6133 = 0.99
+		const design = designFlute(tube, [], 280);
+
+		expect(design.embouchureCorrection).toBeCloseTo(0.99, 1);
+	});
+
+	it('reports no embouchure correction when the lowest note is derived', () => {
+		expect(designFlute(tube, []).embouchureCorrection).toBeCloseTo(0, 6);
+	});
+
+	it('shifts every hole position by the deduced embouchure correction', () => {
+		const design = designFlute(tube, [500, 600], 280);
+		// A tube lengthened by Δ with the same measured note has Δ = 0:
+		// its positions are the acoustic positions of the real flute.
+		const neutral = designFlute(
+			{ ...tube, length: tube.length + design.embouchureCorrection },
+			[500, 600],
+			280
+		);
+
+		expect(neutral.embouchureCorrection).toBeCloseTo(0, 6);
+		design.placements.forEach((placement, index) => {
+			expect(placement.position).toBeCloseTo(
+				(neutral.placements[index]?.position ?? Number.NaN) - design.embouchureCorrection,
+				2
+			);
+		});
+	});
+
+	it('rejects a measured lowest note that would push a hole above the embouchure', () => {
+		// Δ = 25.64 cm : le trou à 700 Hz atterrit à -2.65 cm de l'embouchure
+		expect(() => designFlute(tube, [700], 200)).toThrow(/au-dessus de l'embouchure/);
+	});
+
 	it('keeps a dense diatonic scale drillable despite model limits', () => {
 		// Eight holes with semitone spacings stress the article's model: the feasibility
 		// constraint and ordering safeguard must still yield finite, ordered, drillable holes.
