@@ -81,7 +81,11 @@
 	</div>
 
 	{#if design}
-		<DrillingPlan {design} tubeLengthCm={parsed.input?.tube.length ?? 0} />
+		<DrillingPlan
+				{design}
+				tubeLengthCm={parsed.input?.tube.length ?? 0}
+				tubeBoreCm={parsed.input?.tube.boreDiameter ?? 0}
+			/>
 	{:else}
 		<p class="mt-6 rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
 			Corrigez les champs signalés pour obtenir le plan de perçage.
