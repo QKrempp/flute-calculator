@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cutoffFrequency } from './tone-hole';
-import { designFlute, solveHoleDiameter, type TubeSpec } from './design';
+import { designFlute, deriveLowestNoteFrequency, embouchureCorrection, solveHoleDiameter, type TubeSpec } from './design';
+import { noteNameToFrequency } from './notes';
 
 const tube: TubeSpec = { length: 60, boreDiameter: 2, wallThickness: 0.2 };
 
@@ -109,5 +110,34 @@ describe('designFlute', () => {
 				design.placements[index - 1]?.position ?? 0
 			);
 		}
+	});
+});
+
+describe('embouchureCorrection', () => {
+	it('deduces the chromojara embouchure length from the book flute in G', () => {
+		// Livre p.135 : tube 808 mm, perce 25 mm, Sol grave : Δ = 88.01 - 80.8 - 0.77
+		const tube: TubeSpec = { length: 80.8, boreDiameter: 2.5, wallThickness: 0.15 };
+		expect(embouchureCorrection(tube, noteNameToFrequency('Sol3'))).toBeCloseTo(6.45, 1);
+	});
+
+	it('deduces the diatonic embouchure length from the book flute in D', () => {
+		// Livre p.134 : tube 530 mm, perce 20 mm, Ré grave : Δ = 58.74 - 53.0 - 0.61
+		const tube: TubeSpec = { length: 53, boreDiameter: 2, wallThickness: 0.15 };
+		expect(embouchureCorrection(tube, noteNameToFrequency('Ré4'))).toBeCloseTo(5.12, 1);
+	});
+
+	it('returns zero when the measurement matches the bare tube', () => {
+		// 34500 / (2 * 284.59) = 60.61 = 60 + endCorrection(2)
+		expect(embouchureCorrection(tube, deriveLowestNoteFrequency(tube))).toBeCloseTo(0, 6);
+	});
+
+	it('clamps measurement noise below zero', () => {
+		// 34500 / (2 * 285) - 60 - 0.6133 = -0.087 cm : dans la tolérance
+		expect(embouchureCorrection(tube, 285)).toBe(0);
+	});
+
+	it('rejects a measurement sharper than the tube allows', () => {
+		// Une octave mesurée au lieu de la fondamentale : Δ fortement négatif
+		expect(() => embouchureCorrection(tube, 300)).toThrow(/harmonique/);
 	});
 });

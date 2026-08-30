@@ -128,6 +128,23 @@ export function deriveLowestNoteFrequency(tube: TubeSpec): number {
 	return SPEED_OF_SOUND_CM_PER_SECOND / (2 * acousticLength);
 }
 
+/** Measurement noise tolerated below zero before a measured fundamental is called wrong. */
+const MEASUREMENT_NOISE_CM = 0.2;
+
+/** Deduces the acoustic length the embouchure adds to the tube from its measured fundamental. */
+export function embouchureCorrection(tube: TubeSpec, measuredFrequency: number): number {
+	const correction =
+		theoreticalPipeLength(measuredFrequency, 'open') -
+		tube.length -
+		endCorrection(tube.boreDiameter);
+	if (correction < -MEASUREMENT_NOISE_CM) {
+		throw new Error(
+			'Note grave mesurée plus aiguë que la longueur du tuyau ne permet — vérifiez que vous mesurez la fondamentale et non un harmonique'
+		);
+	}
+	return Math.max(correction, 0);
+}
+
 /** Throws when a hole would sound at or below the lowest note of the tube. */
 function validateHoleFrequencies(frequencies: number[], lowestNoteFrequency: number): void {
 	const belowLowestNote = frequencies.find((frequency) => frequency <= lowestNoteFrequency);
