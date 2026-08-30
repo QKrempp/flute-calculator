@@ -3,6 +3,8 @@
 	import HolesEditor from '$lib/components/HolesEditor.svelte';
 	import TubeForm from '$lib/components/TubeForm.svelte';
 	import { designFlute, deriveLowestNoteFrequency } from '$lib/calculation/design';
+	import { frequencyToNearestNoteName } from '$lib/calculation/notes';
+	import { suggestHoleNotes, type ScaleType } from '$lib/calculation/scales';
 	import { formatHertz } from '$lib/units';
 	import { parseDesignInput, type TubeFormFields } from '$lib/design-input';
 
@@ -14,7 +16,8 @@
 		lowestNote: ''
 	});
 
-	let holeNames = $state<string[]>(['Sol4', 'La4', 'Si4', 'Ré5', 'Mi5', 'Sol5']);
+	let holeNames = $state<string[]>([]);
+	let scale = $state<ScaleType>('pentatonic');
 
 	const parsed = $derived(parseDesignInput(tubeFields, holeNames));
 	const tubeErrors = $derived(
@@ -29,6 +32,22 @@
 			? `Estimation depuis la longueur : ${formatHertz(deriveLowestNoteFrequency(parsed.input.tube))} Hz`
 			: ''
 	);
+
+	const tuningHertz = $derived(Number(tubeFields.tuning) > 0 ? Number(tubeFields.tuning) : 440);
+	const lowestNoteName = $derived(
+		parsed.input
+			? frequencyToNearestNoteName(
+					parsed.input.measuredLowestNoteFrequency ?? deriveLowestNoteFrequency(parsed.input.tube),
+					tuningHertz
+			)
+			: null
+	);
+
+	// Suggest the hole notes of the selected scale, tracking the lowest note and the tuning.
+	$effect(() => {
+		if (scale === 'free' || lowestNoteName === null) return;
+		holeNames = suggestHoleNotes(lowestNoteName, scale, tuningHertz);
+	});
 
 	const design = $derived(
 		parsed.input
@@ -58,7 +77,7 @@
 
 	<div class="mt-6 grid items-start gap-4 md:grid-cols-2">
 		<TubeForm fields={tubeFields} errors={tubeErrors} {lowestNoteHint} />
-		<HolesEditor bind:notes={holeNames} errors={holeErrors} />
+		<HolesEditor bind:notes={holeNames} bind:scale={scale} errors={holeErrors} />
 	</div>
 
 	{#if design}
