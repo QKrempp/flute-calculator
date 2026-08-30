@@ -31,6 +31,8 @@ export interface SuggestedHolePlacement extends ToneHolePlacement {
 export interface FluteDesign {
 	/** Lowest note (Hz) driving the design: measured if provided, derived from the tube otherwise. */
 	lowestNoteFrequency: number;
+	/** Acoustic length (cm) the embouchure adds, deduced from the lowest note. */
+	embouchureCorrection: number;
 	/** Cutoff frequency (Hz) every hole is sized to reach. */
 	cutoffTarget: number;
 	/** Hole placements ordered from the embouchure (highest note) to the bell. */
@@ -67,7 +69,9 @@ export function solveHoleDiameter(
 	return (low + high) / 2;
 }
 
-/** Designs a flute from an existing tube and the target frequencies of its tone holes. */
+/** Designs a flute from an existing tube and the target frequencies of its tone holes.
+ * @param measuredLowestNoteFrequency Optional measured frequency of the lowest note on the
+ *   finished tube, used to deduce the embouchure correction (Δ subtracted from every position). */
 export function designFlute(
 	tube: TubeSpec,
 	holeFrequencies: number[],
@@ -75,6 +79,7 @@ export function designFlute(
 ): FluteDesign {
 	const lowestNoteFrequency =
 		measuredLowestNoteFrequency ?? deriveLowestNoteFrequency(tube);
+	const embouchure = embouchureCorrection(tube, lowestNoteFrequency);
 	const cutoffTarget = 4 * lowestNoteFrequency;
 	const acousticLength = SPEED_OF_SOUND_CM_PER_SECOND / (2 * lowestNoteFrequency);
 
@@ -113,12 +118,22 @@ export function designFlute(
 	}
 
 	const placementsFromBellToEmbouchure = [...placements].reverse();
+	const physicalPlacements = placementsFromBellToEmbouchure.map((placement, index) => ({
+		...placement,
+		holeDiameter: diameters[index],
+		position: placement.position - embouchure
+	}));
+	const aboveEmbouchure = physicalPlacements.find((placement) => placement.position < 0);
+	if (aboveEmbouchure !== undefined) {
+		throw new Error(
+			`Trou à ${aboveEmbouchure.frequency.toFixed(0)} Hz au-dessus de l'embouchure — la note grave mesurée semble trop grave`
+		);
+	}
 	return {
 		lowestNoteFrequency,
+		embouchureCorrection: embouchure,
 		cutoffTarget,
-		placements: placementsFromBellToEmbouchure
-			.map((placement, index) => ({ ...placement, holeDiameter: diameters[index] }))
-			.reverse()
+		placements: physicalPlacements.reverse()
 	};
 }
 
@@ -126,6 +141,23 @@ export function designFlute(
 export function deriveLowestNoteFrequency(tube: TubeSpec): number {
 	const acousticLength = tube.length + endCorrection(tube.boreDiameter);
 	return SPEED_OF_SOUND_CM_PER_SECOND / (2 * acousticLength);
+}
+
+/** Measurement noise tolerated below zero before a measured fundamental is called wrong. */
+const MEASUREMENT_NOISE_CM = 0.2;
+
+/** Deduces the acoustic length the embouchure adds to the tube from its measured fundamental. */
+export function embouchureCorrection(tube: TubeSpec, measuredFrequency: number): number {
+	const correction =
+		theoreticalPipeLength(measuredFrequency, 'open') -
+		tube.length -
+		endCorrection(tube.boreDiameter);
+	if (correction < -MEASUREMENT_NOISE_CM) {
+		throw new Error(
+			'Note grave mesurée plus aiguë que la longueur du tuyau ne permet — vérifiez que vous mesurez la fondamentale et non un harmonique'
+		);
+	}
+	return Math.max(correction, 0);
 }
 
 /** Throws when a hole would sound at or below the lowest note of the tube. */

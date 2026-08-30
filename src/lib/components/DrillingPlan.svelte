@@ -5,8 +5,9 @@
 
 	let {
 		design,
-		tubeLengthCm
-	}: { design: FluteDesign; tubeLengthCm: number } = $props();
+		tubeLengthCm,
+		tubeBoreCm
+	}: { design: FluteDesign; tubeLengthCm: number; tubeBoreCm: number } = $props();
 
 	const rows = $derived(
 		[...design.placements]
@@ -39,6 +40,17 @@
 			Cible de coupure :
 			<strong class="text-slate-800">{formatHertz(design.cutoffTarget)} Hz</strong>
 		</span>
+		{#if design.embouchureCorrection >= 0.05}
+			<span>
+				Correction d'embouchure :
+				<strong class="text-slate-800">
+					+{formatMillimeters(design.embouchureCorrection * 10)}
+				</strong>
+				{#if tubeBoreCm > 0}
+					(≈ {(design.embouchureCorrection / tubeBoreCm).toFixed(1)} × la perce)
+				{/if}
+			</span>
+		{/if}
 	</div>
 
 	{#if rows.length > 0}

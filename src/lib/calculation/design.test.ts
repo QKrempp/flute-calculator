@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { cutoffFrequency } from './tone-hole';
-import { designFlute, solveHoleDiameter, type TubeSpec } from './design';
+import { designFlute, deriveLowestNoteFrequency, embouchureCorrection, solveHoleDiameter, type TubeSpec } from './design';
+import { noteNameToFrequency } from './notes';
 
 const tube: TubeSpec = { length: 60, boreDiameter: 2, wallThickness: 0.2 };
 
@@ -89,6 +90,41 @@ describe('designFlute', () => {
 		expect(design.placements).toEqual([]);
 	});
 
+	it('deduces the embouchure correction from the measured lowest note', () => {
+		// 34500 / (2 * 280) = 61.61 ; Δ = 61.61 - 60 - 0.6133 = 0.99
+		const design = designFlute(tube, [], 280);
+
+		expect(design.embouchureCorrection).toBeCloseTo(0.99, 1);
+	});
+
+	it('reports no embouchure correction when the lowest note is derived', () => {
+		expect(designFlute(tube, []).embouchureCorrection).toBeCloseTo(0, 6);
+	});
+
+	it('shifts every hole position by the deduced embouchure correction', () => {
+		const design = designFlute(tube, [500, 600], 280);
+		// A tube lengthened by Δ with the same measured note has Δ = 0:
+		// its positions are the acoustic positions of the real flute.
+		const neutral = designFlute(
+			{ ...tube, length: tube.length + design.embouchureCorrection },
+			[500, 600],
+			280
+		);
+
+		expect(neutral.embouchureCorrection).toBeCloseTo(0, 6);
+		design.placements.forEach((placement, index) => {
+			expect(placement.position).toBeCloseTo(
+				(neutral.placements[index]?.position ?? Number.NaN) - design.embouchureCorrection,
+				2
+			);
+		});
+	});
+
+	it('rejects a measured lowest note that would push a hole above the embouchure', () => {
+		// Δ = 25.64 cm : le trou à 700 Hz atterrit à -2.65 cm de l'embouchure
+		expect(() => designFlute(tube, [700], 200)).toThrow(/au-dessus de l'embouchure/);
+	});
+
 	it('keeps a dense diatonic scale drillable despite model limits', () => {
 		// Eight holes with semitone spacings stress the article's model: the feasibility
 		// constraint and ordering safeguard must still yield finite, ordered, drillable holes.
@@ -109,5 +145,34 @@ describe('designFlute', () => {
 				design.placements[index - 1]?.position ?? 0
 			);
 		}
+	});
+});
+
+describe('embouchureCorrection', () => {
+	it('deduces the chromojara embouchure length from the book flute in G', () => {
+		// Livre p.135 : tube 808 mm, perce 25 mm, Sol grave : Δ = 88.01 - 80.8 - 0.77
+		const tube: TubeSpec = { length: 80.8, boreDiameter: 2.5, wallThickness: 0.15 };
+		expect(embouchureCorrection(tube, noteNameToFrequency('Sol3'))).toBeCloseTo(6.45, 1);
+	});
+
+	it('deduces the diatonic embouchure length from the book flute in D', () => {
+		// Livre p.134 : tube 530 mm, perce 20 mm, Ré grave : Δ = 58.74 - 53.0 - 0.61
+		const tube: TubeSpec = { length: 53, boreDiameter: 2, wallThickness: 0.15 };
+		expect(embouchureCorrection(tube, noteNameToFrequency('Ré4'))).toBeCloseTo(5.12, 1);
+	});
+
+	it('returns zero when the measurement matches the bare tube', () => {
+		// 34500 / (2 * 284.59) = 60.61 = 60 + endCorrection(2)
+		expect(embouchureCorrection(tube, deriveLowestNoteFrequency(tube))).toBeCloseTo(0, 6);
+	});
+
+	it('clamps measurement noise below zero', () => {
+		// 34500 / (2 * 285) - 60 - 0.6133 = -0.087 cm : dans la tolérance
+		expect(embouchureCorrection(tube, 285)).toBe(0);
+	});
+
+	it('rejects a measurement sharper than the tube allows', () => {
+		// Une octave mesurée au lieu de la fondamentale : Δ fortement négatif
+		expect(() => embouchureCorrection(tube, 300)).toThrow(/harmonique/);
 	});
 });

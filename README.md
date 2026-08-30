@@ -29,7 +29,7 @@ De plus, positions et diamètres sont couplés : la fréquence de coupure d'un t
 
 ### Conception à partir d'un tube existant
 
-L'article part de la note grave souhaitée pour en déduire la longueur du tube. L'application inverse le point de départ, fidèle à l'usage de bricolage : on possède déjà un tube. La note grave est donc déduite de la longueur physique du tube (correction de terminaison comprise), ou mesurée directement au micro si l'utilisateur en fournit une fréquence — les tubes réels s'écartant des formules (couche limite, viscosité, pertes thermiques). La correction de terminaison est appliquée comme l'article le préconise : en fin de conception, sur la longueur à couper.
+L'article part de la note grave souhaitée pour en déduire la longueur du tube. L'application inverse le point de départ, fidèle à l'usage de bricolage : on possède déjà un tube. La note grave est donc déduite de la longueur physique du tube (correction de terminaison comprise), ou mesurée directement au micro si l'utilisateur en fournit une fréquence — les tubes réels s'écartant des formules (couche limite, viscosité, pertes thermiques). Cette mesure sert aussi à déduire la correction d'embouchure (voir « Effet d'embouchure » ci-dessous). La correction de terminaison est appliquée comme l'article le préconise : en fin de conception, sur la longueur à couper.
 
 ### Garde-fous de faisabilité
 
@@ -42,6 +42,6 @@ L'article ne traite pas le cas de layouts serrés où les corrections feraient s
 
 Ces garde-fous ne changent pas les formules : ils bornent leurs extrapolations lorsque les hypothèses de l'article ne tiennent plus.
 
-### Effet d'embouchure ignoré, gamme tempérée
+### Effet d'embouchure déduit de la note grave mesurée, gamme tempérée
 
-Comme l'article, qui renvoie ce point « à un prochain document », l'effet d'embouchure n'est pas modélisé : toutes les positions sont mesurées depuis l'embouchure. Les conversions nom de note ↔ fréquence utilisent la gamme tempérée (référence La configurable, 440 Hz par défaut), alors que l'article n'impose aucun tempérament.
+L'article renvoie la prise en compte de l'embouchure « à un prochain document » : l'embouchure (lèvres, biseau, trou de souffle) rallonge acoustiquement le tuyau. Le code (`design.ts`) déduit cette correction de la note grave **mesurée** avant perçage : Δ = longueur acoustique de la note mesurée − longueur physique du tube − correction de terminaison. Δ est ensuite soustraite de chaque position de trou. Une mesure plus aiguë que la géométrie ne le permet est rejetée (symptôme classique d'une mesure d'harmonique au lieu de la fondamentale). Sans mesure, Δ vaut 0 : toutes les positions restent mesurées depuis l'embouchure, comme dans l'article. La correction n'est exacte que pour le premier registre ; les conversions nom de note ↔ fréquence utilisent la gamme tempérée (référence La configurable, 440 Hz par défaut), alors que l'article n'impose aucun tempérament.
