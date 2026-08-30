@@ -9,16 +9,18 @@
 	}: { design: FluteDesign; tubeLengthCm: number } = $props();
 
 	const rows = $derived(
-		design.placements.map((placement, index, all) => ({
-			note: frequencyToNearestNoteName(placement.frequency),
-			drillMm: placement.holeDiameter * 10,
-			positionMm: placement.position * 10,
-			spacingMm:
-				index < all.length - 1
-					? (all[index + 1].position - placement.position) * 10
-					: (tubeLengthCm - placement.position) * 10,
-			cutoff: placement.cutoffFrequency
-		}))
+		[...design.placements]
+			.reverse()
+			.map((placement, index, all) => ({
+				note: frequencyToNearestNoteName(placement.frequency),
+				drillMm: placement.holeDiameter * 10,
+				positionMm: (tubeLengthCm - placement.position) * 10,
+				spacingMm:
+					index === 0
+						? (tubeLengthCm - placement.position) * 10
+						: (all[index - 1].position - placement.position) * 10,
+				cutoff: placement.cutoffFrequency
+			}))
 	);
 
 	const lowestNoteName = $derived(frequencyToNearestNoteName(design.lowestNoteFrequency));
@@ -46,7 +48,7 @@
 					<tr class="border-b border-slate-300 text-left font-medium text-slate-600">
 						<th class="px-2 py-1.5">Note</th>
 						<th class="px-2 py-1.5">Foret Ø (mm)</th>
-						<th class="px-2 py-1.5">Position (mm)</th>
+						<th class="px-2 py-1.5">Position depuis le pavillon (mm)</th>
 						<th class="px-2 py-1.5">Distance (mm)</th>
 						<th class="px-2 py-1.5">Coupure (Hz)</th>
 					</tr>
@@ -65,8 +67,9 @@
 			</table>
 		</div>
 		<p class="mt-3 text-xs text-slate-500">
-			Positions mesurées depuis l'embouchure ; distance jusqu'au trou suivant côté pavillon (bout du
-			tuyau pour le dernier). Percez plus petit que prévu et accordez en remontant.
+			Positions mesurées depuis le bout du tuyau (côté pavillon, opposé à l'embouchure) ; distance
+			jusqu'au trou suivant côté pavillon (bout du tuyau pour le trou le plus grave). Percez plus petit
+			que prévu et accordez en remontant.
 		</p>
 	{:else}
 		<p class="mt-3 text-sm text-slate-500">
