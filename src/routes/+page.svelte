@@ -49,7 +49,7 @@
 		holeNames = suggestHoleNotes(lowestNoteName, scale, tuningHertz);
 	});
 
-	const design = $derived(
+	const designResult = $derived(
 		parsed.input
 			? designFlute(
 					parsed.input.tube,
@@ -57,6 +57,9 @@
 					parsed.input.measuredLowestNoteFrequency
 				)
 			: null
+	);
+	const design = $derived(
+		designResult && designResult.kind === 'design' ? designResult.design : null
 	);
 </script>
 

@@ -1,6 +1,7 @@
 import { designFlute, deriveLowestNoteFrequency, type TubeSpec } from './calculation/design';
 import { noteNameToFrequency } from './calculation/notes';
 import { parseDecimal } from './units';
+import type { DesignIssue } from './calculation/design';
 
 /** Raw text values of the tube form fields, as typed by the maker. */
 export interface TubeFormFields {
@@ -73,11 +74,9 @@ export function parseDesignInput(fields: TubeFormFields, holeNames: string[]): D
 	if (Object.keys(errors).length === 0) {
 		// Field-level checks passed: run the full design once so measurement
 		// inconsistencies surface on the lowest-note field, never in the page.
-		try {
-			designFlute(tube!, holeFrequencies, measuredLowestNoteFrequency);
-		} catch (error) {
-			errors['lowestNote'] =
-				error instanceof Error ? error.message : 'Note grave mesurée incohérente';
+		const result = designFlute(tube!, holeFrequencies, measuredLowestNoteFrequency);
+		if (result.kind === 'invalid') {
+			errors['lowestNote'] = designIssueMessage(result.issue);
 		}
 	}
 
@@ -94,6 +93,18 @@ export function parseDesignInput(fields: TubeFormFields, holeNames: string[]): D
 function parsePositiveNumber(text: string): number | null {
 	const value = parseDecimal(text);
 	return value !== null && value > 0 ? value : null;
+}
+
+/** Translates a design issue into the French message shown on the lowest-note field. */
+function designIssueMessage(issue: DesignIssue): string {
+	switch (issue.kind) {
+		case 'holeBelowLowestNote':
+			return `Note trop grave : au-dessus de ${issue.lowestNoteFrequency.toFixed(0)} Hz requis`;
+		case 'measuredNoteNotFundamental':
+			return 'Note grave mesurée plus aiguë que la longueur du tuyau ne permet — vérifiez que vous mesurez la fondamentale et non un harmonique';
+		case 'holeAboveEmbouchure':
+			return `Trou à ${issue.frequency.toFixed(0)} Hz au-dessus de l'embouchure — la note grave mesurée semble trop grave`;
+	}
 }
 
 /** Flags a hole that would sound at or below the lowest note of the tube. */
