@@ -43,10 +43,13 @@ export function planFlute(
 	scale: ScaleType
 ): FlutePlan {
 	const parsed = parseForm(fields, holeNames);
+	const errors = { ...parsed.errors };
 	const lowestNoteFrequency = parsed.tube
 		? parsed.measuredLowestNoteFrequency ?? deriveLowestNoteFrequency(parsed.tube)
 		: null;
 	const tuning = Number(fields.tuning) > 0 ? Number(fields.tuning) : 440;
+	const lowestNoteName =
+		lowestNoteFrequency === null ? null : frequencyToNearestNoteName(lowestNoteFrequency, tuning);
 
 	const invalidPlan: FlutePlan = {
 		tube: parsed.tube,
@@ -54,9 +57,9 @@ export function planFlute(
 		lowestNoteHint: '',
 		lowestNoteName: null,
 		suggestedHoleNotes: [],
-		errors: parsed.errors
+		errors
 	};
-	if (!parsed.tube || hasErrors(parsed.errors)) {
+	if (!parsed.tube || hasErrors(errors)) {
 		return invalidPlan;
 	}
 
@@ -66,10 +69,7 @@ export function planFlute(
 		parsed.measuredLowestNoteFrequency
 	);
 	if (result.kind === 'invalid') {
-		invalidPlan.errors = {
-			...parsed.errors,
-			[designIssueField(result.issue, parsed.parsedHoles)]: designIssueMessage(result.issue)
-		};
+		errors[designIssueField(result.issue, parsed.parsedHoles)] = designIssueMessage(result.issue);
 		return invalidPlan;
 	}
 
@@ -80,20 +80,26 @@ export function planFlute(
 			parsed.measuredLowestNoteFrequency === undefined && lowestNoteFrequency !== null
 				? `Estimation depuis la longueur : ${formatHertz(lowestNoteFrequency)} Hz`
 				: '',
-		lowestNoteName: lowestNoteFrequency === null ? null : frequencyToNearestNoteName(lowestNoteFrequency, tuning),
+		lowestNoteName,
 		suggestedHoleNotes:
-			scale === 'free' || lowestNoteFrequency === null
+			scale === 'free' || lowestNoteName === null
 				? []
-				: suggestHoleNotes(frequencyToNearestNoteName(lowestNoteFrequency, tuning), scale, tuning),
-		errors: {}
+				: suggestHoleNotes(lowestNoteName, scale, tuning),
+		errors
 	};
+}
+
+/** A hole note parsed from the form, with the form row it came from. */
+interface ParsedHole {
+	frequency: number;
+	fieldIndex: number;
 }
 
 /** A form fully parsed, before the domain invariants are checked. */
 interface ParsedForm {
 	tube: TubeSpec | null;
 	holeFrequencies: number[];
-	parsedHoles: { frequency: number; fieldIndex: number }[];
+	parsedHoles: ParsedHole[];
 	measuredLowestNoteFrequency?: number;
 	errors: Record<string, string>;
 }
@@ -165,17 +171,14 @@ function designIssueMessage(issue: DesignIssue): string {
 		case 'holeBelowLowestNote':
 			return `Note trop grave : au-dessus de ${issue.lowestNoteFrequency.toFixed(0)} Hz requis`;
 		case 'measuredNoteNotFundamental':
-			return 'Note grave mesurée plus aiguë que la longueur du tuyau ne permet — vérifiez que vous mesurez la fondamentale et non un harmonique';
+			return `Note grave mesurée plus aiguë que la longueur du tuyau ne permet (limite ${formatHertz(issue.limit)} Hz) — vérifiez que vous mesurez la fondamentale et non un harmonique`;
 		case 'holeAboveEmbouchure':
 			return `Trou à ${issue.frequency.toFixed(0)} Hz au-dessus de l'embouchure — la note grave mesurée semble trop grave`;
 	}
 }
 
 /** Routes a design issue to the form field that can fix it. */
-function designIssueField(
-	issue: DesignIssue,
-	parsedHoles: { frequency: number; fieldIndex: number }[]
-): string {
+function designIssueField(issue: DesignIssue, parsedHoles: ParsedHole[]): string {
 	switch (issue.kind) {
 		case 'holeBelowLowestNote': {
 			const offending = parsedHoles.find((hole) => hole.frequency === issue.frequency);
