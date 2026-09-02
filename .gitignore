@@ -25,3 +25,6 @@ vite.config.ts.timestamp-*
 # Agents work
 /.work
 /.superpowers
+/.scratch
+/docs/agents
+/.pi
