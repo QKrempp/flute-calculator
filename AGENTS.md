@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Appuies-toi au maximum sur tes skills superpowers pour le développement.
+Appuies-toi au maximum sur tes skills pour le développement.
 
 ## Objectif du projet
 
@@ -48,3 +48,17 @@ Appliquer ces modèles à chaque dispatch via l'outil `subagent` natif (paramèt
 - svelte 5 (typescript)
 - pnpm
 - eslint
+
+## Agent skills
+
+### Issue tracker
+
+Issues suivies en markdown local sous `.scratch/<feature>/` (fichiers non committés, comme `.work/`). Voir `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Vocabulaire canonique par défaut (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). Voir `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Repo à contexte unique : `CONTEXT.md` + `docs/adr/` à la racine. Voir `docs/agents/domain.md`.
