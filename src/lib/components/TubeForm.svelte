@@ -8,14 +8,15 @@
 		lowestNoteHint = ''
 	}: { fields: TubeFormFields; errors: Record<string, string>; lowestNoteHint?: string } = $props();
 
-	const inputClass = 'w-full rounded border border-slate-300 px-2 py-1.5 text-slate-800 focus:border-sky-500 focus:outline-none';
-	const invalidClass = 'border-red-400 focus:border-red-500';
-	const labelClass = 'block text-sm font-medium text-slate-700';
-	const errorClass = 'mt-1 text-xs text-red-600';
+	const inputClass =
+		'w-full rounded border border-line-strong bg-surface px-2 py-1.5 text-ink placeholder:text-faint focus:border-accent-line focus:outline-none';
+	const invalidClass = 'border-danger-line focus:border-danger';
+	const labelClass = 'block text-sm font-medium text-ink-soft';
+	const errorClass = 'mt-1 text-xs text-danger';
 </script>
 
-<fieldset class="rounded-lg border border-slate-200 bg-white p-4">
-	<legend class="px-2 text-sm font-semibold text-slate-700">Le tuyau</legend>
+<fieldset class="rounded-lg border border-line bg-surface p-4">
+	<legend class="px-2 text-sm font-semibold text-ink-soft">Le tuyau</legend>
 
 	<div class="mt-2 grid grid-cols-2 gap-3">
 		<label class={labelClass}>
@@ -64,7 +65,7 @@
 
 		<label class={labelClass}>
 			Note grave mesurée (Hz)
-			<span class="font-normal text-slate-500">— optionnel</span>
+			<span class="font-normal text-faint">— optionnel</span>
 			<input
 				class="{inputClass} {errors['lowestNote'] ? invalidClass : ''}"
 				type="text"
@@ -74,7 +75,7 @@
 			{#if errors['lowestNote']}
 				<span class={errorClass}>{errors['lowestNote']}</span>
 			{:else if lowestNoteHint}
-				<span class="mt-1 block text-xs text-slate-500">{lowestNoteHint}</span>
+				<span class="mt-1 block text-xs text-faint">{lowestNoteHint}</span>
 			{/if}
 			<FrequencyMeter
 				tuning={Number(fields.tuning) > 0 ? Number(fields.tuning) : 440}
