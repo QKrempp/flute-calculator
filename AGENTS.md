@@ -28,9 +28,10 @@ Appuies-toi au maximum sur tes skills superpowers pour le développement.
 - ✅ Noms de fonctions/variables représentant des intentions claires, pour une charge mentale minimale
 - ✅ Docstrings en one-liners
 - ✅ Conventional commits, unitaires (un seul changement logique) avec description des changements
+- ✅ L'agent crée la PR de la feature branch, après y avoir fait passer une review (skill code-review)
 - 🚫 Jamais de commit/merge sur main/master — une feature = une branche
 - 🚫 Jamais de fichiers de travail (designs, plans) committés. Les mettre dans .work/
-- 🚫 Les PR sont créées par le tech lead
+- 🚫 Jamais de merge sur main/master : le merge reste au tech lead
 
 ## Routage des subagents
 

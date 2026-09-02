@@ -1,9 +1,24 @@
 import { describe, expect, it } from 'vitest';
 import { cutoffFrequency } from './tone-hole';
-import { designFlute, deriveLowestNoteFrequency, embouchureCorrection, solveHoleDiameter, type TubeSpec } from './design';
+import {
+	designFlute,
+	deriveLowestNoteFrequency,
+	embouchureCorrection,
+	solveHoleDiameter,
+	type DesignResult,
+	type FluteDesign,
+	type TubeSpec
+} from './design';
 import { noteNameToFrequency } from './notes';
 
 const tube: TubeSpec = { length: 60, boreDiameter: 2, wallThickness: 0.2 };
+
+/** Unwraps a design result, failing the test when the request was rejected. */
+function expectDesign(result: DesignResult): FluteDesign {
+	expect(result.kind).toBe('design');
+	if (result.kind !== 'design') throw new Error('plan de perçage attendu');
+	return result.design;
+}
 
 describe('solveHoleDiameter', () => {
 	it('finds the diameter whose cutoff frequency reaches the target', () => {
@@ -25,32 +40,52 @@ describe('solveHoleDiameter', () => {
 describe('designFlute', () => {
 	it('derives the lowest note from the tube length and the end correction', () => {
 		// 34500 / (2 * (60 + 0.6133)) = 284.59 Hz
-		const design = designFlute(tube, []);
+		const design = expectDesign(designFlute(tube, []));
 
 		expect(design.lowestNoteFrequency).toBeCloseTo(284.59, 1);
 	});
 
 	it('uses the measured lowest note when provided', () => {
-		const design = designFlute(tube, [], 280);
+		const design = expectDesign(designFlute(tube, [], 280));
 
 		expect(design.lowestNoteFrequency).toBe(280);
 	});
 
 	it('targets twice the register-change frequency, an octave above the lowest note', () => {
-		expect(designFlute(tube, []).cutoffTarget).toBeCloseTo(4 * 284.59, 1);
-		expect(designFlute(tube, [], 280).cutoffTarget).toBe(1120);
+		expect(expectDesign(designFlute(tube, [])).cutoffTarget).toBeCloseTo(4 * 284.59, 1);
+		expect(expectDesign(designFlute(tube, [], 280)).cutoffTarget).toBe(1120);
+	});
+
+	it('rejects a measured note sharper than the tube allows, before checking holes', () => {
+		// Une octave mesurée au lieu de la fondamentale
+		expect(designFlute(tube, [280], 300)).toEqual({
+			kind: 'invalid',
+			issue: {
+				kind: 'measuredNoteNotFundamental',
+				measuredFrequency: 300,
+				limit: deriveLowestNoteFrequency(tube)
+			}
+		});
 	});
 
 	it('rejects holes at or below the lowest note', () => {
-		expect(() => designFlute(tube, [280], 300)).toThrow(/grave/);
-		expect(() => designFlute(tube, [280])).toThrow(/grave/);
+		expect(designFlute(tube, [280])).toEqual({
+			kind: 'invalid',
+			issue: {
+				kind: 'holeBelowLowestNote',
+				frequency: 280,
+				lowestNoteFrequency: deriveLowestNoteFrequency(tube)
+			}
+		});
 	});
 
 	it('suggests drillable diameters with homogeneous cutoff frequencies', () => {
 		// Diatonic holes spaced a whole tone apart: no clamping expected.
-		const design = designFlute(
-			{ length: 40, boreDiameter: 1.6, wallThickness: 0.25 },
-			[470, 528, 592]
+		const design = expectDesign(
+			designFlute(
+				{ length: 40, boreDiameter: 1.6, wallThickness: 0.25 },
+				[470, 528, 592]
+			)
 		);
 
 		expect(design.placements).toHaveLength(3);
@@ -65,9 +100,11 @@ describe('designFlute', () => {
 	});
 
 	it('drills larger holes toward the bell, where spacings grow', () => {
-		const design = designFlute(
-			{ length: 40, boreDiameter: 1.6, wallThickness: 0.25 },
-			[470, 528, 592]
+		const design = expectDesign(
+			designFlute(
+				{ length: 40, boreDiameter: 1.6, wallThickness: 0.25 },
+				[470, 528, 592]
+			)
 		);
 
 		const embouchureMost = design.placements[0];
@@ -76,7 +113,7 @@ describe('designFlute', () => {
 	});
 
 	it('keeps every hole inside the tube, above the embouchure', () => {
-		const design = designFlute(tube, [500, 600, 700]);
+		const design = expectDesign(designFlute(tube, [500, 600, 700]));
 
 		for (const placement of design.placements) {
 			expect(placement.position).toBeGreaterThan(0);
@@ -85,30 +122,32 @@ describe('designFlute', () => {
 	});
 
 	it('designs a flute without holes', () => {
-		const design = designFlute(tube, []);
+		const design = expectDesign(designFlute(tube, []));
 
 		expect(design.placements).toEqual([]);
 	});
 
 	it('deduces the embouchure correction from the measured lowest note', () => {
 		// 34500 / (2 * 280) = 61.61 ; Δ = 61.61 - 60 - 0.6133 = 0.99
-		const design = designFlute(tube, [], 280);
+		const design = expectDesign(designFlute(tube, [], 280));
 
 		expect(design.embouchureCorrection).toBeCloseTo(0.99, 1);
 	});
 
 	it('reports no embouchure correction when the lowest note is derived', () => {
-		expect(designFlute(tube, []).embouchureCorrection).toBeCloseTo(0, 6);
+		expect(expectDesign(designFlute(tube, [])).embouchureCorrection).toBeCloseTo(0, 6);
 	});
 
 	it('shifts every hole position by the deduced embouchure correction', () => {
-		const design = designFlute(tube, [500, 600], 280);
+		const design = expectDesign(designFlute(tube, [500, 600], 280));
 		// A tube lengthened by Δ with the same measured note has Δ = 0:
 		// its positions are the acoustic positions of the real flute.
-		const neutral = designFlute(
-			{ ...tube, length: tube.length + design.embouchureCorrection },
-			[500, 600],
-			280
+		const neutral = expectDesign(
+			designFlute(
+				{ ...tube, length: tube.length + design.embouchureCorrection },
+				[500, 600],
+				280
+			)
 		);
 
 		expect(neutral.embouchureCorrection).toBeCloseTo(0, 6);
@@ -122,15 +161,20 @@ describe('designFlute', () => {
 
 	it('rejects a measured lowest note that would push a hole above the embouchure', () => {
 		// Δ = 25.64 cm : le trou à 700 Hz atterrit à -2.65 cm de l'embouchure
-		expect(() => designFlute(tube, [700], 200)).toThrow(/au-dessus de l'embouchure/);
+		expect(designFlute(tube, [700], 200)).toEqual({
+			kind: 'invalid',
+			issue: { kind: 'holeAboveEmbouchure', frequency: 700 }
+		});
 	});
 
 	it('keeps a dense diatonic scale drillable despite model limits', () => {
 		// Eight holes with semitone spacings stress the article's model: the feasibility
 		// constraint and ordering safeguard must still yield finite, ordered, drillable holes.
-		const design = designFlute(
-			{ length: 50, boreDiameter: 1.6, wallThickness: 0.2 },
-			[392, 440, 494, 523, 587, 659, 740, 784]
+		const design = expectDesign(
+			designFlute(
+				{ length: 50, boreDiameter: 1.6, wallThickness: 0.2 },
+				[392, 440, 494, 523, 587, 659, 740, 784]
+			)
 		);
 
 		expect(design.placements).toHaveLength(8);
@@ -166,13 +210,13 @@ describe('embouchureCorrection', () => {
 		expect(embouchureCorrection(tube, deriveLowestNoteFrequency(tube))).toBeCloseTo(0, 6);
 	});
 
-	it('clamps measurement noise below zero', () => {
+	it('returns the raw negative correction within the measurement noise', () => {
 		// 34500 / (2 * 285) - 60 - 0.6133 = -0.087 cm : dans la tolérance
-		expect(embouchureCorrection(tube, 285)).toBe(0);
+		expect(embouchureCorrection(tube, 285)).toBeCloseTo(-0.087, 2);
 	});
 
-	it('rejects a measurement sharper than the tube allows', () => {
-		// Une octave mesurée au lieu de la fondamentale : Δ fortement négatif
-		expect(() => embouchureCorrection(tube, 300)).toThrow(/harmonique/);
+	it('returns a strongly negative correction for a measurement sharper than the tube allows', () => {
+		// Une octave mesurée au lieu de la fondamentale : Δ = -3.11 cm, hors tolérance
+		expect(embouchureCorrection(tube, 300)).toBeLessThan(-0.2);
 	});
 });

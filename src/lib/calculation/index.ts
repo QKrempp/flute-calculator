@@ -11,6 +11,8 @@ export {
 	deriveLowestNoteFrequency,
 	solveHoleDiameter,
 	DRILL_STEP_CM,
+	type DesignIssue,
+	type DesignResult,
 	type FluteDesign,
 	type SuggestedHolePlacement,
 	type TubeSpec

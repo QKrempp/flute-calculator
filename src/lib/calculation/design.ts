@@ -39,6 +39,17 @@ export interface FluteDesign {
 	placements: SuggestedHolePlacement[];
 }
 
+/** Why a design request cannot produce a plan, in domain terms. */
+export type DesignIssue =
+	| { kind: 'holeBelowLowestNote'; frequency: number; lowestNoteFrequency: number }
+	| { kind: 'measuredNoteNotFundamental'; measuredFrequency: number; limit: number }
+	| { kind: 'holeAboveEmbouchure'; frequency: number };
+
+/** The outcome of a design request: a drilling plan, or the issue that blocks it. */
+export type DesignResult =
+	| { kind: 'design'; design: FluteDesign }
+	| { kind: 'invalid'; issue: DesignIssue };
+
 /** Solves the hole diameter reaching the target cutoff frequency at the given spacing. */
 export function solveHoleDiameter(
 	tube: TubeSpec,
@@ -76,15 +87,34 @@ export function designFlute(
 	tube: TubeSpec,
 	holeFrequencies: number[],
 	measuredLowestNoteFrequency?: number
-): FluteDesign {
+): DesignResult {
 	const lowestNoteFrequency =
 		measuredLowestNoteFrequency ?? deriveLowestNoteFrequency(tube);
-	const embouchure = embouchureCorrection(tube, lowestNoteFrequency);
+	const rawCorrection = embouchureCorrection(tube, lowestNoteFrequency);
+	if (rawCorrection < -MEASUREMENT_NOISE_CM) {
+		return {
+			kind: 'invalid',
+			issue: {
+				kind: 'measuredNoteNotFundamental',
+				measuredFrequency: lowestNoteFrequency,
+				limit: deriveLowestNoteFrequency(tube)
+			}
+		};
+	}
+	const embouchure = Math.max(rawCorrection, 0);
 	const cutoffTarget = 4 * lowestNoteFrequency;
 	const acousticLength = SPEED_OF_SOUND_CM_PER_SECOND / (2 * lowestNoteFrequency);
 
 	const frequenciesFromBellToEmbouchure = [...holeFrequencies].sort((left, right) => left - right);
-	validateHoleFrequencies(frequenciesFromBellToEmbouchure, lowestNoteFrequency);
+	const belowLowestNote = frequenciesFromBellToEmbouchure.find(
+		(frequency) => frequency <= lowestNoteFrequency
+	);
+	if (belowLowestNote !== undefined) {
+		return {
+			kind: 'invalid',
+			issue: { kind: 'holeBelowLowestNote', frequency: belowLowestNote, lowestNoteFrequency }
+		};
+	}
 
 	let positions = frequenciesFromBellToEmbouchure.map((frequency) =>
 		theoreticalPipeLength(frequency, 'open')
@@ -125,15 +155,19 @@ export function designFlute(
 	}));
 	const aboveEmbouchure = physicalPlacements.find((placement) => placement.position < 0);
 	if (aboveEmbouchure !== undefined) {
-		throw new Error(
-			`Trou à ${aboveEmbouchure.frequency.toFixed(0)} Hz au-dessus de l'embouchure — la note grave mesurée semble trop grave`
-		);
+		return {
+			kind: 'invalid',
+			issue: { kind: 'holeAboveEmbouchure', frequency: aboveEmbouchure.frequency }
+		};
 	}
 	return {
-		lowestNoteFrequency,
-		embouchureCorrection: embouchure,
-		cutoffTarget,
-		placements: physicalPlacements.reverse()
+		kind: 'design',
+		design: {
+			lowestNoteFrequency,
+			embouchureCorrection: embouchure,
+			cutoffTarget,
+			placements: physicalPlacements.reverse()
+		}
 	};
 }
 
@@ -146,28 +180,14 @@ export function deriveLowestNoteFrequency(tube: TubeSpec): number {
 /** Measurement noise tolerated below zero before a measured fundamental is called wrong. */
 const MEASUREMENT_NOISE_CM = 0.2;
 
-/** Deduces the acoustic length the embouchure adds to the tube from its measured fundamental. */
+/** Computes the raw acoustic length the embouchure adds to the tube; negative when the
+ *  measurement sounds sharper than the tube allows (likely a harmonic, not the fundamental). */
 export function embouchureCorrection(tube: TubeSpec, measuredFrequency: number): number {
-	const correction =
+	return (
 		theoreticalPipeLength(measuredFrequency, 'open') -
 		tube.length -
-		endCorrection(tube.boreDiameter);
-	if (correction < -MEASUREMENT_NOISE_CM) {
-		throw new Error(
-			'Note grave mesurée plus aiguë que la longueur du tuyau ne permet — vérifiez que vous mesurez la fondamentale et non un harmonique'
-		);
-	}
-	return Math.max(correction, 0);
-}
-
-/** Throws when a hole would sound at or below the lowest note of the tube. */
-function validateHoleFrequencies(frequencies: number[], lowestNoteFrequency: number): void {
-	const belowLowestNote = frequencies.find((frequency) => frequency <= lowestNoteFrequency);
-	if (belowLowestNote !== undefined) {
-		throw new Error(
-			`Trou à ${belowLowestNote.toFixed(0)} Hz : au-dessus de la note grave (${lowestNoteFrequency.toFixed(0)} Hz) requis`
-		);
-	}
+		endCorrection(tube.boreDiameter)
+	);
 }
 
 /** Rounds a solved diameter to the drill grid, clamped between the minimum drill and the bore. */
