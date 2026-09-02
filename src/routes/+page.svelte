@@ -2,11 +2,8 @@
 	import DrillingPlan from '$lib/components/DrillingPlan.svelte';
 	import HolesEditor from '$lib/components/HolesEditor.svelte';
 	import TubeForm from '$lib/components/TubeForm.svelte';
-	import { designFlute, deriveLowestNoteFrequency } from '$lib/calculation/design';
-	import { frequencyToNearestNoteName } from '$lib/calculation/notes';
-	import { suggestHoleNotes, type ScaleType } from '$lib/calculation/scales';
-	import { formatHertz } from '$lib/units';
-	import { parseDesignInput, type TubeFormFields } from '$lib/design-input';
+	import type { ScaleType, TubeFormFields } from '$lib/planning';
+	import { planFlute } from '$lib/planning';
 
 	const tubeFields = $state<TubeFormFields>({
 		length: '500',
@@ -19,48 +16,25 @@
 	let holeNames = $state<string[]>([]);
 	let scale = $state<ScaleType>('pentatonic');
 
-	const parsed = $derived(parseDesignInput(tubeFields, holeNames));
+	const plan = $derived(planFlute(tubeFields, holeNames, scale));
 	const tubeErrors = $derived(
-		Object.fromEntries(Object.entries(parsed.errors).filter(([key]) => !key.startsWith('hole-')))
+		Object.fromEntries(Object.entries(plan.errors).filter(([key]) => !key.startsWith('hole-')))
 	);
 	const holeErrors = $derived(
-		Object.fromEntries(Object.entries(parsed.errors).filter(([key]) => key.startsWith('hole-')))
+		Object.fromEntries(Object.entries(plan.errors).filter(([key]) => key.startsWith('hole-')))
 	);
 
-	const lowestNoteHint = $derived(
-		parsed.input && tubeFields.lowestNote.trim() === ''
-			? `Estimation depuis la longueur : ${formatHertz(deriveLowestNoteFrequency(parsed.input.tube))} Hz`
-			: ''
-	);
-
-	const tuningHertz = $derived(Number(tubeFields.tuning) > 0 ? Number(tubeFields.tuning) : 440);
-	const lowestNoteName = $derived(
-		parsed.input
-			? frequencyToNearestNoteName(
-					parsed.input.measuredLowestNoteFrequency ?? deriveLowestNoteFrequency(parsed.input.tube),
-					tuningHertz
-			)
-			: null
-	);
-
-	// Suggest the hole notes of the selected scale, tracking the lowest note and the tuning.
+	// Adopt the suggested hole notes of the selected scale, tracking the lowest
+	// note; the content key breaks the plan → suggestion → plan feedback loop.
+	let lastSuggestedKey = '';
 	$effect(() => {
-		if (scale === 'free' || lowestNoteName === null) return;
-		holeNames = suggestHoleNotes(lowestNoteName, scale, tuningHertz);
+		const suggested = plan.suggestedHoleNotes;
+		if (suggested.length === 0) return;
+		const key = suggested.join('|');
+		if (key === lastSuggestedKey) return;
+		lastSuggestedKey = key;
+		holeNames = suggested;
 	});
-
-	const designResult = $derived(
-		parsed.input
-			? designFlute(
-					parsed.input.tube,
-					parsed.input.holeFrequencies,
-					parsed.input.measuredLowestNoteFrequency
-				)
-			: null
-	);
-	const design = $derived(
-		designResult && designResult.kind === 'design' ? designResult.design : null
-	);
 </script>
 
 <svelte:head>
@@ -79,15 +53,15 @@
 	</p>
 
 	<div class="mt-6 grid items-start gap-4 md:grid-cols-2">
-		<TubeForm fields={tubeFields} errors={tubeErrors} {lowestNoteHint} />
+		<TubeForm fields={tubeFields} errors={tubeErrors} lowestNoteHint={plan.lowestNoteHint} />
 		<HolesEditor bind:notes={holeNames} bind:scale={scale} errors={holeErrors} />
 	</div>
 
-	{#if design}
+	{#if plan.design}
 		<DrillingPlan
-				{design}
-				tubeLengthCm={parsed.input?.tube.length ?? 0}
-				tubeBoreCm={parsed.input?.tube.boreDiameter ?? 0}
+				design={plan.design}
+				tubeLengthCm={plan.tube?.length ?? 0}
+				tubeBoreCm={plan.tube?.boreDiameter ?? 0}
 			/>
 	{:else}
 		<p class="mt-6 rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">

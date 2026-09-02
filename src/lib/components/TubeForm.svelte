@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { TubeFormFields } from '$lib/design-input';
+	import type { TubeFormFields } from '$lib/planning';
 	import FrequencyMeter from './FrequencyMeter.svelte';
 
 	let {
