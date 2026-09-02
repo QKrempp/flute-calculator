@@ -1,7 +1,6 @@
-import { designFlute, deriveLowestNoteFrequency, type TubeSpec } from './calculation/design';
+import { designFlute, type DesignIssue, type TubeSpec } from './calculation/design';
 import { noteNameToFrequency } from './calculation/notes';
 import { parseDecimal } from './units';
-import type { DesignIssue } from './calculation/design';
 
 /** Raw text values of the tube form fields, as typed by the maker. */
 export interface TubeFormFields {
@@ -58,13 +57,14 @@ export function parseDesignInput(fields: TubeFormFields, holeNames: string[]): D
 			: null;
 
 	const holeFrequencies: number[] = [];
+	const parsedHoles: { frequency: number; fieldIndex: number }[] = [];
 	holeNames.forEach((name, index) => {
 		if (name.trim() === '') {
 			return;
 		}
 		try {
 			const frequency = noteNameToFrequency(name, tuning ?? 440);
-			assertHoleAboveLowestNote(frequency, index, tube, measuredLowestNoteFrequency, errors);
+			parsedHoles.push({ frequency, fieldIndex: index });
 			holeFrequencies.push(frequency);
 		} catch (error) {
 			errors[`hole-${index}`] = error instanceof Error ? error.message : 'Note invalide';
@@ -72,11 +72,11 @@ export function parseDesignInput(fields: TubeFormFields, holeNames: string[]): D
 	});
 
 	if (Object.keys(errors).length === 0) {
-		// Field-level checks passed: run the full design once so measurement
-		// inconsistencies surface on the lowest-note field, never in the page.
+		// Field-level checks passed: run the full design once so domain issues
+		// surface on the field that can fix them, never in the page.
 		const result = designFlute(tube!, holeFrequencies, measuredLowestNoteFrequency);
 		if (result.kind === 'invalid') {
-			errors['lowestNote'] = designIssueMessage(result.issue);
+			errors[designIssueField(result.issue, parsedHoles)] = designIssueMessage(result.issue);
 		}
 	}
 
@@ -95,7 +95,7 @@ function parsePositiveNumber(text: string): number | null {
 	return value !== null && value > 0 ? value : null;
 }
 
-/** Translates a design issue into the French message shown on the lowest-note field. */
+/** Translates a design issue into the French message shown on its field. */
 function designIssueMessage(issue: DesignIssue): string {
 	switch (issue.kind) {
 		case 'holeBelowLowestNote':
@@ -107,17 +107,18 @@ function designIssueMessage(issue: DesignIssue): string {
 	}
 }
 
-/** Flags a hole that would sound at or below the lowest note of the tube. */
-function assertHoleAboveLowestNote(
-	frequency: number,
-	index: number,
-	tube: TubeSpec | null,
-	measuredLowestNoteFrequency: number | undefined,
-	errors: Record<string, string>
-): void {
-	const lowestNoteFrequency =
-		measuredLowestNoteFrequency ?? (tube ? deriveLowestNoteFrequency(tube) : Number.POSITIVE_INFINITY);
-	if (frequency <= lowestNoteFrequency) {
-		errors[`hole-${index}`] = `Note trop grave : au-dessus de ${lowestNoteFrequency.toFixed(0)} Hz requis`;
+/** Routes a design issue to the form field that can fix it. */
+function designIssueField(
+	issue: DesignIssue,
+	parsedHoles: { frequency: number; fieldIndex: number }[]
+): string {
+	switch (issue.kind) {
+		case 'holeBelowLowestNote': {
+			const offending = parsedHoles.find((hole) => hole.frequency === issue.frequency);
+			return offending ? `hole-${offending.fieldIndex}` : 'lowestNote';
+		}
+		case 'measuredNoteNotFundamental':
+		case 'holeAboveEmbouchure':
+			return 'lowestNote';
 	}
 }

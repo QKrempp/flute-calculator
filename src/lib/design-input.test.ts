@@ -68,11 +68,22 @@ describe('parseDesignInput', () => {
 		expect(result.errors['hole-1']).toBeTruthy();
 	});
 
-	it('rejects holes at or below a measured lowest note', () => {
+	it('rejects a measured lowest note above the bare tube before checking holes', () => {
+		// 400 Hz dépasse la fondamentale du tuyau (341,6 Hz) : la mesure est suspecte
 		const result = parseDesignInput({ ...validFields, lowestNote: '400' }, ['Sol4']);
 
 		expect(result.input).toBeNull();
-		expect(result.errors['hole-0']).toBeTruthy();
+		expect(result.errors['lowestNote']).toMatch(/harmonique/);
+	});
+
+	it('reports a below-lowest-note hole on its own field with the domain message', () => {
+		// 500 mm tube, 16 mm bore: fundamental around 341.6 Hz, between Mi4 and Fa4
+		const result = parseDesignInput(validFields, ['La4', 'Do4', 'Sol4']);
+
+		expect(result.input).toBeNull();
+		expect(result.errors['hole-1']).toBe('Note trop grave : au-dessus de 342 Hz requis');
+		expect(result.errors['hole-0']).toBeUndefined();
+		expect(result.errors['hole-2']).toBeUndefined();
 	});
 
 	it('accepts an empty hole list', () => {
