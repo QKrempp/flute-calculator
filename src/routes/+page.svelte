@@ -46,8 +46,8 @@
 </svelte:head>
 
 <main class="mx-auto max-w-3xl px-4 py-8">
-	<h1 class="text-3xl font-bold text-sky-700">Calculateur de flûte</h1>
-	<p class="mt-2 text-slate-600">
+	<h1 class="text-3xl font-bold text-accent">Calculateur de flûte</h1>
+	<p class="mt-2 text-muted">
 		Décrivez votre tuyau et les notes voulues : le calculateur en déduit la note grave, le diamètre
 		de chaque trou et leur position sur le tube.
 	</p>
@@ -59,18 +59,18 @@
 
 	{#if plan.design}
 		<DrillingPlan
-				design={plan.design}
-				tubeLengthCm={plan.tube?.length ?? 0}
-				tubeBoreCm={plan.tube?.boreDiameter ?? 0}
-			/>
+			design={plan.design}
+			tubeLengthCm={plan.tube?.length ?? 0}
+			tubeBoreCm={plan.tube?.boreDiameter ?? 0}
+		/>
 	{:else}
-		<p class="mt-6 rounded-lg border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+		<p class="mt-6 rounded-lg border border-dashed border-line-strong bg-surface p-4 text-sm text-faint">
 			Corrigez les champs signalés pour obtenir le plan de perçage.
 		</p>
 	{/if}
 </main>
 
-<footer class="mx-auto max-w-3xl px-4 pb-8 text-xs text-slate-400">
+<footer class="mx-auto max-w-3xl px-4 pb-8 text-xs text-ghost">
 	Inspiré de l'article « Placement des trous » de vents-sauvages.fr. Les calculs donnent un point de
 	départ : l'oreille reste l'outil final.
 </footer>

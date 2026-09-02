@@ -1,1 +1,69 @@
 @import 'tailwindcss';
+
+/*
+ * Palette sémantique : les composants référencent uniquement ces tokens.
+ * La bascule clair/sombre suit la préférence système via prefers-color-scheme.
+ */
+@theme inline {
+	--color-page: var(--page);
+	--color-surface: var(--surface);
+	--color-surface-hover: var(--surface-hover);
+	--color-accent-soft: var(--accent-soft);
+	--color-line: var(--line);
+	--color-line-strong: var(--line-strong);
+	--color-ink: var(--ink);
+	--color-ink-soft: var(--ink-soft);
+	--color-muted: var(--muted);
+	--color-faint: var(--faint);
+	--color-ghost: var(--ghost);
+	--color-accent: var(--accent);
+	--color-accent-bright: var(--accent-bright);
+	--color-accent-line: var(--accent-line);
+	--color-accent-line-hover: var(--accent-line-hover);
+	--color-danger: var(--danger);
+	--color-danger-line: var(--danger-line);
+}
+
+:root {
+	color-scheme: light dark;
+
+	--page: #ffffff;
+	--surface: #ffffff;
+	--surface-hover: #f1f5f9;
+	--accent-soft: #f0f9ff;
+	--line: #e2e8f0;
+	--line-strong: #cbd5e1;
+	--ink: #1e293b;
+	--ink-soft: #334155;
+	--muted: #475569;
+	--faint: #64748b;
+	--ghost: #94a3b8;
+	--accent: #0369a1;
+	--accent-bright: #0284c7;
+	--accent-line: #0ea5e9;
+	--accent-line-hover: #38bdf8;
+	--danger: #dc2626;
+	--danger-line: #f87171;
+}
+
+@media (prefers-color-scheme: dark) {
+	:root {
+		--page: #0f172a;
+		--surface: #1e293b;
+		--surface-hover: #334155;
+		--accent-soft: #0c4a6e;
+		--line: #334155;
+		--line-strong: #475569;
+		--ink: #f1f5f9;
+		--ink-soft: #e2e8f0;
+		--muted: #cbd5e1;
+		--faint: #94a3b8;
+		--ghost: #64748b;
+		--accent: #7dd3fc;
+		--accent-bright: #bae6fd;
+		--accent-line: #38bdf8;
+		--accent-line-hover: #7dd3fc;
+		--danger: #f87171;
+		--danger-line: #ef4444;
+	}
+}

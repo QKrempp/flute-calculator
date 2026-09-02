@@ -20,10 +20,10 @@
 	let readLoopId = 0;
 
 	const measureButtonClass =
-		'rounded border border-sky-500 px-2 py-1 text-xs font-medium text-sky-600 hover:bg-sky-50';
+		'rounded border border-accent-line px-2 py-1 text-xs font-medium text-accent-bright hover:bg-accent-soft';
 	const validateButtonClass =
-		'rounded border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 enabled:hover:bg-slate-50 disabled:opacity-50';
-	const cancelButtonClass = 'rounded px-2 py-1 text-xs font-medium text-slate-500 hover:text-slate-700';
+		'rounded border border-line-strong px-2 py-1 text-xs font-medium text-ink-soft enabled:hover:bg-surface-hover disabled:opacity-50';
+	const cancelButtonClass = 'rounded px-2 py-1 text-xs font-medium text-faint hover:text-ink-soft';
 
 	/** Starts listening to the microphone and refreshing the live frequency reading. */
 	async function startListening(): Promise<void> {
@@ -95,7 +95,7 @@
 			🎤 Mesurer au micro
 		</button>
 	{:else}
-		<span class="text-xs font-medium text-sky-700">
+		<span class="text-xs font-medium text-accent">
 			{#if liveFrequency === null}
 				Écoute…
 			{:else}
@@ -115,6 +115,6 @@
 		</button>
 	{/if}
 	{#if failure}
-		<span class="text-xs text-red-600">{failure}</span>
+		<span class="text-xs text-danger">{failure}</span>
 	{/if}
 </span>
